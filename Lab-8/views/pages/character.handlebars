@@ -1,0 +1,12 @@
+<div>
+  <h1>{{ heroData.name }}</h1>
+  <img alt = "{{heroData.name}}" src={{ heroData.thumbPath }}.{{ heroData.thumbExt }}>
+  <p> <span class="topic">{{{heroData.desc}}}</span></p>
+  <h2>Comics</h2>
+    <ul>
+        {{#each heroData.comics}}  
+        <li>{{name}}</li>
+        {{/each}}
+    </ul>    
+  <a href="/">Back to Search</a>
+ </div>
