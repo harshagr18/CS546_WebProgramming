@@ -1,8 +1,14 @@
-const session = require("express-session");
 const express = require("express");
+const session = require("express-session");
 const app = express();
-const configRoutes = require("./routes");
+const static = express.static(__dirname + "/public");
 
+const configRoutes = require("./routes");
+const exphbs = require("express-handlebars");
+
+app.use("/public", static);
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 app.use(
   session({
     name: "AuthCookie",
@@ -12,7 +18,41 @@ app.use(
   })
 );
 
-app.use(express.json());
+app.use("/private", (req, res, next) => {
+  if (!req.session.user) {
+    res.status(403).render("pages/error", { error: "User not logged in" });
+  } else {
+    next();
+  }
+});
+
+app.use((req, res, next) => {
+  if (req.session.user) {
+    console.log(
+      "[" +
+        new Date().toUTCString() +
+        "]: " +
+        req.method +
+        " " +
+        req.originalUrl +
+        " (Authenticated User)"
+    );
+  } else {
+    console.log(
+      "[" +
+        new Date().toUTCString() +
+        "]: " +
+        req.method +
+        " " +
+        req.originalUrl +
+        " (Non-Authenticated User)"
+    );
+  }
+  next();
+});
+
+app.engine("handlebars", exphbs({ defaultLayout: "main" }));
+app.set("view engine", "handlebars");
 
 configRoutes(app);
 

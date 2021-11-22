@@ -3,128 +3,141 @@ const router = express.Router();
 const data = require("../data");
 const usersData = data.users;
 
+let gError = "";
+
+function checkIsProperString(val) {
+  if (!val) {
+    throw `No input passed`;
+  }
+  if (typeof val !== "string") {
+    throw `Not a string`;
+  }
+  if (val.indexOf(" ") >= 0) {
+    throw `White spaces not allowed`;
+  }
+}
+
 router.get("/", async (req, res) => {
   try {
-    res.status(200).json({ success: "success" });
+    if (req.session.user) {
+      res.redirect("/private");
+    } else {
+      res.redirect("login");
+    }
   } catch (e) {
-    res.status(404).json({ error: "Restaurant not found" });
+    res.render("pages/error", { error: e });
+    return;
   }
 });
 
-/*
-router.get("/", async (req, res) => {
+router.get("/login", async (req, res) => {
   try {
-    let restaurantsList = await restaurantsData.getAll();
-    if (restaurantsList.length == 0) {
-      res.status(404).json({ error: "There are no restaurants in database" });
+    if (req.session.user) {
+      res.redirect("/private");
+    } else {
+      res.render("pages/login");
+    }
+  } catch (e) {
+    res.status(400).render("pages/login", { error: e });
+    return;
+  }
+});
+
+router.get("/signup", async (req, res) => {
+  try {
+    if (req.session.user) {
+      res.redirect("/private");
+      return;
+    } else {
+      res.render("pages/signup", { error: gError });
+      gError = "";
       return;
     }
-    res.json(restaurantsList);
   } catch (e) {
-    res.sendStatus(500);
+    res.status(400).render("pages/signup", { error: e });
+    return;
   }
 });
 
-router.post("/", async (req, res) => {
-  let restaurantInfo = req.body;
-
-  if (!restaurantInfo) {
-    res.status(400).json({ error: "You must provide data to create a user" });
-    return;
+router.get("/private", async (req, res) => {
+  if (req.session.user) {
+    res.render("pages/private", { username: req.session.user.username });
+  } else {
+    res.status(403).render("pages/error", { error: "User not logged in" });
   }
+});
 
-  if (
-    !restaurantInfo.name ||
-    !restaurantInfo.location ||
-    !restaurantInfo.phoneNumber ||
-    !restaurantInfo.website ||
-    !restaurantInfo.priceRange ||
-    !restaurantInfo.cuisines ||
-    !restaurantInfo.serviceOptions
-  ) {
-    res.status(400).json({ error: "Missing data" });
-    return;
-  }
+router.get("/logout", async (req, res) => {
+  req.session.destroy();
+  res.render("pages/logout");
+});
 
+router.post("/login", async (req, res) => {
   try {
-    const newRestaurant = await restaurantsData.create(
-      restaurantInfo.name,
-      restaurantInfo.location,
-      restaurantInfo.phoneNumber,
-      restaurantInfo.website,
-      restaurantInfo.priceRange,
-      restaurantInfo.cuisines,
-      restaurantInfo.serviceOptions
+    let userInfo = req.body;
+    let compare = await usersData.checkUser(
+      userInfo.username,
+      userInfo.password
     );
-    res.json(newRestaurant);
+    if (compare["authenticated"] === true) {
+      req.session.user = { username: userInfo.username };
+      res.redirect("/private");
+    } else {
+      res.render("pages/login", { error: "Incorrect Username / Password" });
+    }
   } catch (e) {
-    res.status(400).json({ error: "Improper data" });
+    res
+      .status(400)
+      .render("pages/login", { error: "Incorrect Username / Password" });
   }
 });
 
-router.put("/:id", async (req, res) => {
-  let restaurantInfo = req.body;
+router.post("/signup", async (req, res) => {
+  let userInfo = req.body;
 
-  if (!restaurantInfo) {
-    res.status(400).json({ error: "You must provide data to create a user" });
+  if (userInfo.username.trim().length < 4) {
+    res.status(400).render("pages/signup", {
+      error: "Please chose a longer username",
+    });
     return;
   }
 
-  if (
-    !restaurantInfo.name ||
-    !restaurantInfo.location ||
-    !restaurantInfo.phoneNumber ||
-    !restaurantInfo.website ||
-    !restaurantInfo.priceRange ||
-    !restaurantInfo.cuisines ||
-    !restaurantInfo.serviceOptions
-  ) {
-    res.status(400).json({ error: "Missing data" });
+  if (userInfo.password.trim().length < 6) {
+    res.status(400).render("pages/signup", {
+      error: "Please chose a longer password without spaces",
+    });
+    return;
+  }
+
+  if (!userInfo) {
+    res.status(400).render("pages/signup", {
+      error: "You must provide data to create a user",
+    });
+    return;
+  }
+
+  if (!userInfo.username || !userInfo.password) {
+    res.status(400).render("pages/signup", {
+      error: "Missing data",
+    });
     return;
   }
 
   try {
-    await restaurantsData.get(req.params.id);
-  } catch (e) {
-    res.status(404).json({ error: "Resaurant not found" });
-    return;
-  }
-  try {
-    const updatedRestaurant = await restaurantsData.update(
-      req.params.id,
-      restaurantInfo.name,
-      restaurantInfo.location,
-      restaurantInfo.phoneNumber,
-      restaurantInfo.website,
-      restaurantInfo.priceRange,
-      restaurantInfo.cuisines,
-      restaurantInfo.serviceOptions
+    const newUser = await usersData.createUser(
+      userInfo.username,
+      userInfo.password
     );
-    res.json(updatedRestaurant);
+    res.redirect("/");
   } catch (e) {
-    res.sendStatus(500);
-    return;
+    if (e === "Could not add user") {
+      res.status(500).json({ error: "Internal Server Error" });
+      return;
+    } else {
+      gError = e;
+      res.redirect("/signup");
+    }
   }
 });
 
-router.delete("/:id", async (req, res) => {
-  if (!req.params.id) throw "You must specify an ID to delete";
-  try {
-    await restaurantsData.get(req.params.id);
-  } catch (e) {
-    res.status(404).json({ error: "Restaurant not found" });
-    return;
-  }
-
-  try {
-    deletedRestaurant = await restaurantsData.remove(req.params.id);
-    res.json(deletedRestaurant);
-    return;
-  } catch (e) {
-    res.sendStatus(500);
-    return;
-  }
-});
-
-*/
 module.exports = router;

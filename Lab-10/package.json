@@ -10,8 +10,9 @@
   "author": "Harsh Agrawal 10475285",
   "license": "UNLICENSED",
   "dependencies": {
-    "bcryptjs": "^2.4.3",
+    "bcrypt": "^5.0.1",
     "express": "^4.17.1",
+    "express-handlebars": "^5.3.4",
     "express-session": "^1.17.2",
     "mongodb": "^4.2.0",
     "session": "^0.1.0"
