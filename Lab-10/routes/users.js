@@ -83,12 +83,10 @@ router.post("/login", async (req, res) => {
       req.session.user = { username: userInfo.username };
       res.redirect("/private");
     } else {
-      res.render("pages/login", { error: "Incorrect Username / Password" });
+      res.render("pages/login", { error: "Incorrect password" });
     }
   } catch (e) {
-    res
-      .status(400)
-      .render("pages/login", { error: "Incorrect Username / Password" });
+    res.status(400).render("pages/login", { error: e });
   }
 });
 
@@ -130,7 +128,7 @@ router.post("/signup", async (req, res) => {
     );
     res.redirect("/");
   } catch (e) {
-    if (e === "Could not add user") {
+    if (typeof e !== "string") {
       res.status(500).json({ error: "Internal Server Error" });
       return;
     } else {
